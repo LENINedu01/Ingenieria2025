@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Física Interactiva - Promoción 2025</title>
+    <!-- Tailwind CSS para el diseño -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fuentes de Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Indie+Flower&display=swap" rel="stylesheet">
+    <style>
+        .font-handwriting { font-family: 'Caveat', cursive; }
+        .sticky-note { box-shadow: 2px 4px 6px rgba(0,0,0,0.1); }
+        /* Animación suave para la entrada de elementos */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+    <div id="root"></div>
+
+    <!-- Script tipo Módulo para usar React y Firebase directamente desde el navegador -->
+    <script type="module">
+        // Importamos las librerías necesarias desde servidores rápidos (CDN)
+        import React, { useState, useEffect, useRef } from "https://esm.sh/react@18.2.0";
+        import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
+        
+        // Importamos Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            onSnapshot, 
+            query, 
+            orderBy, 
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Importamos Iconos
+        import { 
+            Play, RefreshCcw, ArrowLeft, Car, Zap, ArrowDown, PenTool, Save, GraduationCap, AlertTriangle
+        } from "https://esm.sh/lucide-react@0.294.0";
+
+        // --- TU CONFIGURACIÓN DE FIREBASE (INTEGRADA) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyB3WKkZT_sL2FAjjNU-vLKIyuXNdc0sRXc",
+            authDomain: "pizarron-alumnos.firebaseapp.com",
+            projectId: "pizarron-alumnos",
+            storageBucket: "pizarron-alumnos.firebasestorage.app",
+            messagingSenderId: "629514501276",
+            appId: "1:629514501276:web:922d7f02676d2613abc159",
+            measurementId: "G-MQZQ52YQB9"
+        };
+
+        // Inicializamos Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // ID único para la colección de datos de la promo
+        const appId = "promo-2025-web"; 
+
+        // --- COMPONENTES DE LA INTERFAZ ---
+
+        const Card = ({ children, className = "" }) => (
+            React.createElement("div", { className: `bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden ${className}` }, children)
+        );
+
+        const Button = ({ onClick, children, variant = "primary", className = "", disabled = false }) => {
+            const baseStyle = "px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2";
+            const variants = {
+                primary: "bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300",
+                secondary: "bg-purple-600 text-white hover:bg-purple-700 disabled:bg-purple-300",
+                outline: "border-2 border-gray-300 text-gray-700 hover:bg-gray-50",
+                danger: "bg-red-500 text-white hover:bg-red-600"
+            };
+            return React.createElement("button", { onClick, className: `${baseStyle} ${variants[variant]} ${className}`, disabled }, children);
+        };
+
+        // --- SIMULADORES ---
+
+        const MRUSimulator = ({ onBack }) => {
+            const [velocidad, setVelocidad] = useState(15);
+            const [tiempo, setTiempo] = useState(8);
+            const [animating, setAnimating] = useState(false);
+            const [progress, setProgress] = useState(0);
+
+            const resultado = velocidad * tiempo;
+
+            const startAnimation = () => {
+                setAnimating(true);
+                setProgress(0);
+                let start = null;
+                const duration = 2000;
+
+                const step = (timestamp) => {
+                    if (!start) start = timestamp;
+                    const progressTime = timestamp - start;
+                    const pct = Math.min(progressTime / duration, 1);
+                    setProgress(pct * 100);
+
+                    if (progressTime < duration) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        setAnimating(false);
+                    }
+                };
+                window.requestAnimationFrame(step);
+            };
+
+            return React.createElement("div", { className: "p-4 max-w-4xl mx-auto" },
+                React.createElement(Button, { onClick: onBack, variant: "outline", className: "mb-4" }, React.createElement(ArrowLeft, { size: 16 }), " Volver al Menú"),
+                React.createElement("h2", { className: "text-3xl font-bold text-blue-800 mb-6 flex items-center gap-2" }, React.createElement(Car, null), " MRU: Movimiento Rectilíneo Uniforme"),
+                React.createElement("div", { className: "grid md:grid-cols-2 gap-8" },
+                    React.createElement(Card, { className: "p-6" },
+                        React.createElement("h3", { className: "text-xl font-bold mb-4" }, "Datos del Problema"),
+                        React.createElement("p", { className: "mb-4 text-gray-600 italic" }, "\"Un auto viaja a velocidad constante. ¿Cuánto recorre?\""),
+                        React.createElement("div", { className: "space-y-4" },
+                            React.createElement("div", null,
+                                React.createElement("label", { className: "block text-sm font-medium text-gray-700" }, "Velocidad (v) en m/s"),
+                                React.createElement("input", { type: "number", value: velocidad, onChange: (e) => setVelocidad(Number(e.target.value)), className: "w-full p-2 border rounded mt-1" })
+                            ),
+                            React.createElement("div", null,
+                                React.createElement("label", { className: "block text-sm font-medium text-gray-700" }, "Tiempo (t) en s"),
+                                React.createElement("input", { type: "number", value: tiempo, onChange: (e) => setTiempo(Number(e.target.value)), className: "w-full p-2 border rounded mt-1" })
+                            )
+                        ),
+                        React.createElement("div", { className: "mt-6 bg-blue-50 p-4 rounded border border-blue-100" },
+                            React.createElement("p", { className: "font-mono text-lg text-blue-900" }, "d = v × t"),
+                            React.createElement("p", { className: "font-mono text-lg text-blue-900" }, "d = ", velocidad, " × ", tiempo, " = ", React.createElement("strong", null, resultado, " m"))
+                        ),
+                        React.createElement(Button, { onClick: startAnimation, className: "w-full mt-4", disabled: animating },
+                            animating ? 'Simulando...' : 'Simular', " ", React.createElement(Play, { size: 16 })
+                        )
+                    ),
+                    React.createElement(Card, { className: "p-6 bg-gray-100 relative min-h-[300px] flex flex-col justify-end overflow-hidden" },
+                        React.createElement("div", { className: "absolute top-4 left-4 right-4 text-center text-gray-400 font-bold text-4xl select-none opacity-20" }, "SIMULACIÓN"),
+                        React.createElement("div", { className: "w-full h-4 bg-gray-400 relative mt-auto mb-8 rounded" },
+                            [0, 25, 50, 75, 100].map(m => 
+                                React.createElement("div", { key: m, className: "absolute h-6 w-1 bg-gray-500 top-0", style: { left: `${m}%` } },
+                                    React.createElement("span", { className: "absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-gray-600" }, Math.round((m/100)*resultado), "m")
+                                )
+                            )
+                        ),
+                        React.createElement("div", { className: "absolute bottom-10 transition-none", style: { left: `${progress}%`, transform: 'translateX(-50%)' } },
+                            React.createElement("div", { className: "bg-blue-600 text-white p-2 rounded-lg shadow-lg" }, React.createElement(Car, { size: 32 })),
+                            React.createElement("div", { className: "text-center text-xs font-bold mt-1 text-blue-700" }, Math.round((progress/100)*resultado), " m")
+                        )
+                    )
+                )
+            );
+        };
+
+        const MRUVSimulator = ({ onBack }) => {
+            const [aceleracion, setAceleracion] = useState(2);
+            const [tiempo, setTiempo] = useState(3);
+            const [animating, setAnimating] = useState(false);
+            const [progress, setProgress] = useState(0);
+
+            const velocidadFinal = aceleracion * tiempo;
+
+            const startAnimation = () => {
+                setAnimating(true);
+                setProgress(0);
+                let start = null;
+                const duration = 2000;
+
+                const step = (timestamp) => {
+                    if (!start) start = timestamp;
+                    const t = timestamp - start;
+                    const pctTime = Math.min(t / duration, 1);
+                    const visualProgress = pctTime * pctTime; 
+                    setProgress(visualProgress * 100);
+
+                    if (t < duration) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        setAnimating(false);
+                    }
+                };
+                window.requestAnimationFrame(step);
+            };
+
+            return React.createElement("div", { className: "p-4 max-w-4xl mx-auto" },
+                React.createElement(Button, { onClick: onBack, variant: "outline", className: "mb-4" }, React.createElement(ArrowLeft, { size: 16 }), " Volver al Menú"),
+                React.createElement("h2", { className: "text-3xl font-bold text-purple-800 mb-6 flex items-center gap-2" }, React.createElement(Zap, null), " MRUV: Movimiento Acelerado"),
+                React.createElement("div", { className: "grid md:grid-cols-2 gap-8" },
+                    React.createElement(Card, { className: "p-6" },
+                        React.createElement("h3", { className: "text-xl font-bold mb-4" }, "Datos (Parte del Reposo)"),
+                        React.createElement("div", { className: "space-y-4" },
+                            React.createElement("div", null,
+                                React.createElement("label", { className: "block text-sm font-medium text-gray-700" }, "Aceleración (a) en m/s²"),
+                                React.createElement("input", { type: "number", value: aceleracion, onChange: (e) => setAceleracion(Number(e.target.value)), className: "w-full p-2 border rounded mt-1" })
+                            ),
+                            React.createElement("div", null,
+                                React.createElement("label", { className: "block text-sm font-medium text-gray-700" }, "Tiempo (t) en s"),
+                                React.createElement("input", { type: "number", value: tiempo, onChange: (e) => setTiempo(Number(e.target.value)), className: "w-full p-2 border rounded mt-1" })
+                            )
+                        ),
+                        React.createElement("div", { className: "mt-6 bg-purple-50 p-4 rounded border border-purple-100" },
+                            React.createElement("p", { className: "font-mono text-lg text-purple-900" }, "Vf = Vi + a × t"),
+                            React.createElement("p", { className: "font-mono text-lg text-purple-900" }, "Vf = 0 + ", aceleracion, " × ", tiempo, " = ", React.createElement("strong", null, velocidadFinal, " m/s"))
+                        ),
+                        React.createElement(Button, { onClick: startAnimation, variant: "secondary", className: "w-full mt-4", disabled: animating },
+                            animating ? 'Acelerando...' : 'Simular', " ", React.createElement(Play, { size: 16 })
+                        )
+                    ),
+                    React.createElement(Card, { className: "p-6 bg-gray-100 relative min-h-[300px] flex flex-col justify-end overflow-hidden" },
+                        React.createElement("div", { className: "absolute top-4 left-4 text-center w-full text-gray-400 font-bold text-4xl select-none opacity-20" }, "ACELERACIÓN"),
+                        React.createElement("div", { className: "w-full h-4 bg-gray-400 relative mt-auto mb-8 rounded" }),
+                        React.createElement("div", { className: "absolute bottom-10 transition-none", style: { left: `${progress}%`, transform: 'translateX(-50%)' } },
+                            React.createElement("div", { className: "bg-purple-600 text-white p-3 rounded-full shadow-lg" }, React.createElement(Zap, { size: 24 })),
+                            animating && React.createElement("div", { className: "text-xs text-center font-bold mt-1 text-purple-700" }, "Acelerando!")
+                        )
+                    )
+                )
+            );
+        };
+
+        const FreeFallSimulator = ({ onBack }) => {
+            const [tiempo, setTiempo] = useState(2);
+            const [animating, setAnimating] = useState(false);
+            const [progress, setProgress] = useState(0);
+            
+            const gravedad = 9.8;
+            const velocidadFinal = (gravedad * tiempo).toFixed(1);
+
+            const startAnimation = () => {
+                setAnimating(true);
+                setProgress(0);
+                let start = null;
+                const duration = 1500;
+
+                const step = (timestamp) => {
+                    if (!start) start = timestamp;
+                    const t = timestamp - start;
+                    const pctTime = Math.min(t / duration, 1);
+                    const visualProgress = pctTime * pctTime;
+                    setProgress(visualProgress * 100);
+
+                    if (t < duration) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        setAnimating(false);
+                    }
+                };
+                window.requestAnimationFrame(step);
+            };
+
+            return React.createElement("div", { className: "p-4 max-w-4xl mx-auto" },
+                React.createElement(Button, { onClick: onBack, variant: "outline", className: "mb-4" }, React.createElement(ArrowLeft, { size: 16 }), " Volver al Menú"),
+                React.createElement("h2", { className: "text-3xl font-bold text-teal-800 mb-6 flex items-center gap-2" }, React.createElement(ArrowDown, null), " Caída Libre"),
+                React.createElement("div", { className: "grid md:grid-cols-2 gap-8" },
+                    React.createElement(Card, { className: "p-6" },
+                        React.createElement("h3", { className: "text-xl font-bold mb-4" }, "Objeto en Caída"),
+                        React.createElement("div", { className: "space-y-4" },
+                            React.createElement("div", null,
+                                React.createElement("label", { className: "block text-sm font-medium text-gray-700" }, "Tiempo de caída (t) en s"),
+                                React.createElement("input", { type: "number", value: tiempo, onChange: (e) => setTiempo(Number(e.target.value)), className: "w-full p-2 border rounded mt-1" })
+                            ),
+                            React.createElement("div", { className: "p-2 bg-gray-50 text-sm text-gray-500 rounded" }, "Gravedad constante: g ≈ 9.8 m/s²")
+                        ),
+                        React.createElement("div", { className: "mt-6 bg-teal-50 p-4 rounded border border-teal-100" },
+                            React.createElement("p", { className: "font-mono text-lg text-teal-900" }, "Vf = g × t"),
+                            React.createElement("p", { className: "font-mono text-lg text-teal-900" }, "Vf = 9.8 × ", tiempo, " ≈ ", React.createElement("strong", null, velocidadFinal, " m/s"))
+                        ),
+                        React.createElement(Button, { onClick: startAnimation, className: "w-full mt-4 bg-teal-600 hover:bg-teal-700", disabled: animating },
+                            animating ? 'Cayendo...' : 'Soltar Objeto', " ", React.createElement(ArrowDown, { size: 16 })
+                        )
+                    ),
+                    React.createElement(Card, { className: "p-6 bg-sky-100 relative h-[400px] overflow-hidden" },
+                        React.createElement("div", { className: "absolute top-10 right-10 opacity-50" }, React.createElement("span", { className: "text-6xl" }, "☁️")),
+                        React.createElement("div", { className: "absolute top-40 left-10 opacity-40" }, React.createElement("span", { className: "text-5xl" }, "☁️")),
+                        React.createElement("div", { className: "absolute bottom-0 left-0 right-0 h-8 bg-green-600" }),
+                        React.createElement("div", { className: "absolute left-1/2 -translate-x-1/2 transition-none", style: { top: `${10 + (progress * 0.8)}%` } },
+                            React.createElement("div", { className: "w-12 h-12 bg-red-500 rounded-full shadow-xl flex items-center justify-center border-2 border-red-700 relative z-10" },
+                                React.createElement("span", { className: "text-white text-xs" }, "m")
+                            ),
+                            animating && React.createElement("div", { className: "absolute -top-8 left-1/2 -translate-x-1/2 w-1 h-8 bg-white opacity-50 blur-sm" })
+                        )
+                    )
+                )
+            );
+        };
+
+        const SignatureCanvas = ({ onSave, onCancel }) => {
+            const canvasRef = useRef(null);
+            const [isDrawing, setIsDrawing] = useState(false);
+            const [ctx, setCtx] = useState(null);
+
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+                const context = canvas.getContext('2d');
+                context.strokeStyle = '#2563eb';
+                context.lineWidth = 3;
+                context.lineCap = 'round';
+                setCtx(context);
+            }, []);
+
+            const getPos = (e) => {
+                const canvas = canvasRef.current;
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            };
+
+            const startDrawing = (e) => {
+                e.preventDefault();
+                setIsDrawing(true);
+                const pos = getPos(e);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+            };
+
+            const draw = (e) => {
+                if (!isDrawing) return;
+                e.preventDefault();
+                const pos = getPos(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+            };
+
+            const stopDrawing = () => setIsDrawing(false);
+            const clearCanvas = () => ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            const handleSave = () => onSave(canvasRef.current.toDataURL());
+
+            return React.createElement("div", { className: "flex flex-col gap-4" },
+                React.createElement("div", { className: "border-2 border-dashed border-gray-400 rounded-lg bg-white overflow-hidden touch-none h-48 w-full relative group" },
+                    React.createElement("canvas", {
+                        ref: canvasRef,
+                        className: "w-full h-full cursor-crosshair",
+                        onMouseDown: startDrawing,
+                        onMouseMove: draw,
+                        onMouseUp: stopDrawing,
+                        onMouseLeave: stopDrawing,
+                        onTouchStart: startDrawing,
+                        onTouchMove: draw,
+                        onTouchEnd: stopDrawing
+                    }),
+                    React.createElement("div", { className: "absolute top-2 right-2 opacity-50 text-xs text-gray-400 pointer-events-none group-hover:opacity-0 transition" }, "Dibuja aquí")
+                ),
+                React.createElement("div", { className: "flex gap-2 justify-end" },
+                    React.createElement(Button, { onClick: clearCanvas, variant: "outline", className: "text-sm py-1" }, React.createElement(RefreshCcw, { size: 14 }), " Borrar"),
+                    React.createElement(Button, { onClick: handleSave, className: "text-sm py-1" }, "Guardar Firma")
+                )
+            );
+        };
+
+        const PromoBoard = ({ onBack, user }) => {
+            const [mode, setMode] = useState('view');
+            const [signatures, setSignatures] = useState([]);
+            const [formData, setFormData] = useState({ name: '', formula: '' });
+            const [submitting, setSubmitting] = useState(false);
+
+            useEffect(() => {
+                // Ahora usamos el Firestore real de tu proyecto
+                const q = query(
+                    collection(db, 'pizarron_promo2025'), // Nombre de la colección en tu Firebase
+                    orderBy('timestamp', 'desc')
+                );
+
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setSignatures(docs);
+                }, (error) => console.error("Error:", error));
+
+                return () => unsubscribe();
+            }, [user]);
+
+            const handleSaveSignature = async (signatureDataUrl) => {
+                if (!formData.name || !formData.formula) {
+                    alert("Por favor completa tu nombre y fórmula");
+                    return;
+                }
+                setSubmitting(true);
+                try {
+                    // Si el usuario no está autenticado, intentar autenticación anónima antes de guardar
+                    if (!auth.currentUser) {
+                        await signInAnonymously(auth);
+                    }
+                    
+                    await addDoc(collection(db, 'pizarron_promo2025'), {
+                        name: formData.name,
+                        formula: formData.formula,
+                        signature: signatureDataUrl,
+                        timestamp: serverTimestamp(),
+                        userId: auth.currentUser ? auth.currentUser.uid : 'anon'
+                    });
+                    setMode('view');
+                    setFormData({ name: '', formula: '' });
+                } catch (e) {
+                    console.error("Error saving:", e);
+                    // Mostrar error amigable si es por auth
+                    if (e.code === 'permission-denied') {
+                        alert("Error de permisos: Asegúrate de que las reglas de Firestore permiten escritura. O que la autenticación anónima esté habilitada.");
+                    } else if (e.code === 'auth/configuration-not-found' || e.code === 'auth/operation-not-allowed') {
+                        alert("ERROR DE CONFIGURACIÓN FIREBASE:\n\nDebes habilitar 'Anonymous' en la sección Authentication > Sign-in method de tu consola Firebase.");
+                    } else {
+                        alert("Error al guardar: " + e.message);
+                    }
+                }
+                setSubmitting(false);
+            };
+
+            return React.createElement("div", { className: "p-4 max-w-6xl mx-auto min-h-screen flex flex-col" },
+                React.createElement("div", { className: "flex justify-between items-center mb-6" },
+                    React.createElement(Button, { onClick: onBack, variant: "outline" }, React.createElement(ArrowLeft, { size: 16 }), " Menú"),
+                    React.createElement("h2", { className: "text-3xl font-serif font-bold text-green-800 flex items-center gap-2" }, React.createElement(GraduationCap, { size: 32 }), " Promoción 2025"),
+                    mode === 'view' && React.createElement(Button, { onClick: () => setMode('sign'), variant: "secondary" }, React.createElement(PenTool, { size: 16 }), " ¡Firma Aquí!")
+                ),
+                mode === 'sign' ? React.createElement(Card, { className: "max-w-xl mx-auto p-6 animate-fade-in" },
+                    React.createElement("h3", { className: "text-xl font-bold mb-4 text-center" }, "Deja tu huella en el anuario"),
+                    React.createElement("div", { className: "space-y-4 mb-6" },
+                        React.createElement("div", null,
+                            React.createElement("label", { className: "block text-sm font-semibold text-gray-700" }, "Tu Nombre"),
+                            React.createElement("input", { type: "text", placeholder: "Ej. Juan Pérez", className: "w-full p-2 border-2 border-gray-200 rounded focus:border-green-500 outline-none transition", value: formData.name, onChange: e => setFormData({...formData, name: e.target.value}) })
+                        ),
+                        React.createElement("div", null,
+                            React.createElement("label", { className: "block text-sm font-semibold text-gray-700" }, "Fórmula de Física Favorita"),
+                            React.createElement("input", { type: "text", placeholder: "Ej. E = mc²", className: "w-full p-2 border-2 border-gray-200 rounded focus:border-green-500 outline-none transition", value: formData.formula, onChange: e => setFormData({...formData, formula: e.target.value}) })
+                        ),
+                        React.createElement("div", null,
+                            React.createElement("label", { className: "block text-sm font-semibold text-gray-700 mb-2" }, "Tu Firma (Dibuja abajo)"),
+                            React.createElement(SignatureCanvas, { onSave: handleSaveSignature })
+                        )
+                    ),
+                    React.createElement("div", { className: "text-center" },
+                        React.createElement(Button, { onClick: () => setMode('view'), variant: "outline", className: "mr-2" }, "Cancelar")
+                    )
+                ) : React.createElement("div", { className: "flex-1 bg-green-900 border-8 border-yellow-700 rounded-lg p-6 shadow-2xl relative overflow-hidden" },
+                    React.createElement("div", { className: "absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/blackboard.png')]" }),
+                    signatures.length === 0 ? React.createElement("div", { className: "text-center text-green-200/50 mt-20 text-2xl font-handwriting" }, "El pizarrón está vacío... ¡Sé el primero en firmar!") :
+                    React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 relative z-10" },
+                        signatures.map((sig) => React.createElement("div", { key: sig.id, className: "bg-white/95 backdrop-blur-sm p-3 rotate-1 hover:rotate-0 transition duration-300 shadow-lg transform hover:scale-105 rounded sticky-note" },
+                            React.createElement("div", { className: "w-24 h-6 bg-yellow-200/60 absolute -top-3 left-1/2 -translate-x-1/2 rotate-2 shadow-sm" }),
+                            React.createElement("p", { className: "font-serif text-xs text-gray-500 mb-1 text-center" }, "Fórmula preferida:"),
+                            React.createElement("p", { className: "font-mono text-center text-blue-800 font-bold bg-gray-100 rounded py-1 mb-2 border border-gray-200" }, sig.formula),
+                            React.createElement("div", { className: "h-16 flex items-center justify-center border-b border-gray-200 mb-2 overflow-hidden" },
+                                React.createElement("img", { src: sig.signature, alt: "Firma", className: "max-h-full max-w-full" })
+                            ),
+                            React.createElement("p", { className: "font-handwriting text-xl text-center text-gray-800 font-bold leading-tight" }, sig.name)
+                        ))
+                    )
+                )
+            );
+        };
+
+        const MainMenu = ({ onSelect }) => {
+            const options = [
+                { id: 'mru', title: 'MRU', desc: 'Movimiento Rectilíneo Uniforme', icon: React.createElement(Car, { size: 40, className: "text-blue-500" }), color: 'hover:border-blue-500' },
+                { id: 'mruv', title: 'MRUV', desc: 'Movimiento Acelerado', icon: React.createElement(Zap, { size: 40, className: "text-purple-500" }), color: 'hover:border-purple-500' },
+                { id: 'freefall', title: 'Caída Libre', desc: 'Gravedad en acción', icon: React.createElement(ArrowDown, { size: 40, className: "text-teal-500" }), color: 'hover:border-teal-500' },
+                { id: 'promo', title: 'Promoción 2025', desc: 'Pizarrón de Firmas', icon: React.createElement(GraduationCap, { size: 40, className: "text-green-600" }), color: 'hover:border-green-600 ring-2 ring-green-100 bg-green-50' },
+            ];
+
+            return React.createElement("div", { className: "min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4" },
+                React.createElement("div", { className: "text-center mb-12" },
+                    React.createElement("h1", { className: "text-5xl font-extrabold text-slate-800 mb-2 tracking-tight" }, "Física Interactiva"),
+                    React.createElement("p", { className: "text-slate-500 text-lg" }, "Selecciona un problema o visita el anuario")
+                ),
+                React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full" },
+                    options.map((opt) => React.createElement("button", {
+                        key: opt.id,
+                        onClick: () => onSelect(opt.id),
+                        className: `bg-white p-6 rounded-2xl shadow-sm border-2 border-transparent transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl flex items-center gap-6 text-left group ${opt.color}`
+                    },
+                        React.createElement("div", { className: "p-4 bg-gray-50 rounded-xl group-hover:bg-white transition-colors border border-gray-100" }, opt.icon),
+                        React.createElement("div", null,
+                            React.createElement("h2", { className: "text-2xl font-bold text-gray-800" }, opt.title),
+                            React.createElement("p", { className: "text-gray-500" }, opt.desc)
+                        )
+                    ))
+                )
+            );
+        };
+
+        const App = () => {
+            const [view, setView] = useState('menu');
+            const [user, setUser] = useState(null);
+            const [authError, setAuthError] = useState(null);
+
+            useEffect(() => {
+                const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+                    if (currentUser) {
+                        setUser(currentUser);
+                        setAuthError(null);
+                    } else {
+                        // Auto-login anónimo si no hay usuario
+                        signInAnonymously(auth).catch((error) => {
+                            console.error("Error auth anónima:", error);
+                            if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
+                                setAuthError("⚠️ Falta configurar Firebase: Debes habilitar 'Anonymous' en Authentication > Sign-in method en tu consola de Firebase.");
+                            } else {
+                                setAuthError("Error de conexión con Firebase: " + error.message);
+                            }
+                        });
+                    }
+                });
+                return () => unsubscribe();
+            }, []);
+
+            return React.createElement("div", { className: "font-sans text-gray-900 bg-gray-50 min-h-screen" }, 
+                authError && React.createElement("div", { className: "bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 relative z-50 shadow-md", role: "alert" },
+                    React.createElement("p", { className: "font-bold" }, "Atención: Configuración Incompleta"),
+                    React.createElement("p", null, authError)
+                ),
+                renderView()
+            );
+
+            function renderView() {
+                switch(view) {
+                    case 'mru': return React.createElement(MRUSimulator, { onBack: () => setView('menu') });
+                    case 'mruv': return React.createElement(MRUVSimulator, { onBack: () => setView('menu') });
+                    case 'freefall': return React.createElement(FreeFallSimulator, { onBack: () => setView('menu') });
+                    case 'promo': return React.createElement(PromoBoard, { onBack: () => setView('menu'), user: user });
+                    default: return React.createElement(MainMenu, { onSelect: setView });
+                }
+            }
+        };
+
+        // Renderizado de la aplicación
+        const root = createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+    </script>
+</body>
+</html>
